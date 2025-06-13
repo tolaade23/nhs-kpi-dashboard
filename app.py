@@ -28,7 +28,6 @@ if not st.session_state.logged_in:
 
 @st.cache_data
 def load_nhs_data():
-    url = "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2024/05/WLMDS-Summary-to-27-Apr-2025.xlsx"
     csv_url = "https://raw.githubusercontent.com/tolaade23/nhs-kpi-dashboard/main/data/waiting_times.csv"
     df = pd.read_csv(csv_url)
     df = df.rename(columns={"PeriodEnd": "Date", "AverageWaitWeeks": "AvgWaitWeeks"})
