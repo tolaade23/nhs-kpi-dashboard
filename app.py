@@ -7,7 +7,7 @@ import plotly.express as px
 from datetime import datetime
 import base64
 import os
-import pdfkit
+from weasyprint import HTML
 
 USER_CREDENTIALS = {"nhs_admin": "password123", "doctor1": "welcome2025"}
 
@@ -67,13 +67,17 @@ if st.button("Export Current View to PDF"):
     <p><strong>Avg Wait Time:</strong> {round(filtered_df['AvgWaitWeeks'].mean(), 1)} weeks</p>
     <p><strong>Latest Week:</strong> {filtered_df['Date'].max().strftime('%Y-%m-%d')}</p>
     '''
-    with open("dashboard_report.html", "w") as file:
-        file.write(html_content)
-    pdfkit.from_file("dashboard_report.html", "dashboard_report.pdf")
-    with open("dashboard_report.pdf", "rb") as f:
+    
+    # Create the PDF file
+    pdf_file_path = "dashboard_report.pdf"
+    HTML(string=html_content).write_pdf(pdf_file_path)
+
+    # Read and provide download link
+    with open(pdf_file_path, "rb") as f:
         b64_pdf = base64.b64encode(f.read()).decode('utf-8')
         href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="NHS_Dashboard_Report.pdf">Download Report</a>'
         st.markdown(href, unsafe_allow_html=True)
+
 
 st.subheader("🧠 ML Prediction Viewer")
 ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
