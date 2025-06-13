@@ -1,5 +1,5 @@
 # NHS KPI Dashboard App
-
+![Banner](banner.png)
 This app helps NHS teams monitor referrals, discharges, and waiting times using live NHS data.
 
 ## Features
@@ -20,4 +20,3 @@ streamlit run app.py
 docker build -t nhs-dashboard .
 docker run -p 8501:8501 nhs-dashboard
 ```
-![Banner](banner.png)
