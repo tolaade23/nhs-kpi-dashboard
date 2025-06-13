@@ -5,6 +5,10 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import base64
+import zipfile
+import tempfile
+import requests
+import io
 
 USER_CREDENTIALS = {"nhs_admin": "password123", "doctor1": "welcome2025"}
 
@@ -25,15 +29,31 @@ if not st.session_state.logged_in:
         else:
             st.error("Invalid credentials.")
     st.stop()
-
+    
 @st.cache_data
 def load_nhs_data():
-    csv_url = "https://raw.githubusercontent.com/tolaade23/nhs-kpi-dashboard/main/data/waiting_times.csv"
-    df = pd.read_csv(csv_url)
-    df = df.rename(columns={"PeriodEnd": "Date", "AverageWaitWeeks": "AvgWaitWeeks"})
+    url = "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2024/12/Full-CSV-data-file-Oct24-ZIP-4M-60893.zip"
+
+    # Download and unzip
+    response = requests.get(url)
+    zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+
+    # Grab the first CSV (you can refine if needed)
+    csv_filename = [f for f in zip_file.namelist() if f.endswith(".csv")][0]
+
+    with zip_file.open(csv_filename) as csv_file:
+        df = pd.read_csv(csv_file)
+
+    # Rename and format
+    df = df.rename(columns={
+        "Period": "Date",
+        "Incomplete Pathways Median Wait (wks)": "AvgWaitWeeks"
+    })
+
     df = df.dropna(subset=["Date", "AvgWaitWeeks"])
-    df["Date"] = pd.to_datetime(df["Date"])
+    df["Date"] = pd.to_datetime(df["Date"], format="%Y-%m")
     return df
+
 
 df = load_nhs_data()
 
