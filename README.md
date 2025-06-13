@@ -20,4 +20,4 @@ streamlit run app.py
 docker build -t nhs-dashboard .
 docker run -p 8501:8501 nhs-dashboard
 ```
-(![Banner](banner.png))
+![Banner](banner.png)
