@@ -1,6 +1,6 @@
 # NHS KPI Dashboard App
 ![Banner](banner.png)
-This app helps NHS teams monitor referrals, discharges, and waiting times using live NHS data.
+An open-source, cloud-friendly dashboard built with Streamlit to help NHS staff monitor patient wait times, track trends, and get smart alerts.
 
 # 🏥 NHS KPI Dashboard
 
@@ -14,15 +14,15 @@ A secure, interactive, and ML-ready dashboard for tracking NHS wait times in rea
 
 ## 🔍 Overview
 
-This dashboard allows NHS staff to:
-- ✅ View live NHS waiting time statistics from official sources
-- 📈 Track trends over time with interactive charts
-- 🚨 Get ML-powered alerts on spikes in average wait time
-- 🔐 Log in securely to access internal data
-- 📄 Export current dashboard view as a PDF report
-- 🤖 Upload machine learning predictions for preview
-
-Built with **Streamlit**, **Pandas**, **Plotly**, and powered by **WeasyPrint** for PDF exports. Suitable for internal use and public demos.
+This NHS KPI Dashboard allows healthcare teams to:
+- ✅ View and filter live waiting time data from NHS England
+- 📈 Explore weekly trends in waiting times
+- 🚨 Receive alerts for unusual spikes (based on recent averages)
+- 📄 Export filtered data as a CSV file
+- 🔐 Securely log in with simple credentials
+- 🤖 Upload and preview machine learning predictions (CSV)
+- 
+Built with **Streamlit**, **Pandas**, **Plotly**. Suitable for internal use and public demos.
 
 ---
 
@@ -62,10 +62,14 @@ Built with **Streamlit**, **Pandas**, **Plotly**, and powered by **WeasyPrint** 
    ```
 
 ---
-## Docker Deployment
-```bash
-docker build -t nhs-dashboard .
-docker run -p 8501:8501 nhs-dashboard
+## 🚀 Deployment
+
+To deploy to [Streamlit Cloud](https://streamlit.io/cloud):
+1. Upload this project to GitHub
+2. Connect GitHub repo to Streamlit Cloud
+3. Set `app.py` as the main file and add `requirements.txt`
+
+---
 ```
 ## 📦 Features
 
@@ -84,15 +88,8 @@ docker run -p 8501:8501 nhs-dashboard
 
 ---
 
-## 📌 To Do
-
-- [ ] Add Streamlit Cloud deployment link
-- [ ] Upload Loom walkthrough video
-- [ ] Add NHS Login (OAuth) authentication option for real-world use
-
----
-
 ## 👩‍💻 Built By
 
 **Adetola Adeniyi** – [LinkedIn](https://www.linkedin.com/in/adetolaadeniyi/)  
 Powered by open data and cloud technology to support smarter healthcare decisions.
+#Streamlit #NHS #Python #DataScience #MachineLearning #OpenData #AdetolaBuilds #HealthTech
