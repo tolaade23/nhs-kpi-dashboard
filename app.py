@@ -1,13 +1,11 @@
-
 # NHS KPI Dashboard App - Real Data, ML Alerts, and Export
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import base64
-import zipfile
-import tempfile
 import requests
+import zipfile
 import io
 
 USER_CREDENTIALS = {"nhs_admin": "password123", "doctor1": "welcome2025"}
@@ -29,66 +27,68 @@ if not st.session_state.logged_in:
         else:
             st.error("Invalid credentials.")
     st.stop()
-    
+
 @st.cache_data
 def load_nhs_data():
-    df = pd.read_csv("data/rtt_oct2024_full.csv")
+    # Load directly from uploaded CSV
+    df = pd.read_csv("data/oct2024.csv")
 
-    # Try identifying all columns that match the format "Gt XX To XX Weeks SUM 1"
-    wait_columns = [
-        col for col in df.columns
-        if "To" in col and "Weeks" in col and col.startswith("Gt")
-    ]
+    # Fix date parsing
+    df["Date"] = pd.to_datetime(df["Period"], errors="coerce")
+    df = df[df["Date"].notna()]
 
-    # Create a new column for estimated wait week midpoint
-    wait_midpoints = []
-    for col in wait_columns:
+    # Derive avg wait from week bins if "AvgWaitWeeks" not present
+    week_cols = [col for col in df.columns if "Weeks SUM" in col and "Unknown" not in col]
+    if week_cols:
         try:
-            lower = float(col.split("To")[0].replace("Gt", "").strip())
-            upper = float(col.split("To")[1].split("Weeks")[0].strip())
-            midpoint = (lower + upper) / 2
-            wait_midpoints.append((col, midpoint))
+            week_values = [float(col.split("To")[0].replace("Gt", "").strip()) + 0.5 for col in week_cols]
+            week_wait_matrix = df[week_cols].multiply(week_values)
+            df["AvgWaitWeeks"] = week_wait_matrix.sum(axis=1) / df[week_cols].sum(axis=1)
         except:
-            continue
+            df["AvgWaitWeeks"] = None
 
-    # Calculate weighted average wait
-    df["TotalPatients"] = df[ [col for col, _ in wait_midpoints] ].sum(axis=1)
-    df["WeightedWait"] = sum(
-        df[col] * midpoint for col, midpoint in wait_midpoints
-    )
-    df["AvgWaitWeeks"] = df["WeightedWait"] / df["TotalPatients"]
-
-    df = df.rename(columns={"Period": "Date"})
     df = df.dropna(subset=["Date", "AvgWaitWeeks"])
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-
     return df
 
+# Load Data
 df = load_nhs_data()
 
-date_range = st.sidebar.date_input("Select Date Range", [df['Date'].min(), df['Date'].max()])
+if df["Date"].isnull().all():
+    st.error("No valid dates found in the data.")
+    st.stop()
+
+min_date = df["Date"].min()
+max_date = df["Date"].max()
+
+# Sidebar Filter
+date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
 filtered_df = df[
     (df['Date'] >= pd.to_datetime(date_range[0])) &
     (df['Date'] <= pd.to_datetime(date_range[1]))
 ]
 
+# KPI Metrics
 st.subheader("🔎 Key Stats")
 kpi1, kpi2 = st.columns(2)
 kpi1.metric("Avg Wait Time (weeks)", round(filtered_df['AvgWaitWeeks'].mean(), 1))
 kpi2.metric("Latest Week", filtered_df['Date'].max().strftime('%Y-%m-%d'))
 
+# Weekly Spike Alert
 recent = filtered_df[filtered_df['Date'] >= filtered_df['Date'].max() - pd.Timedelta(days=7)]
 if recent['AvgWaitWeeks'].mean() > 12:
     st.warning("⚠️ Weekly wait time has spiked above normal!")
 
+# Line Chart
 st.subheader("📈 Trends in Waiting Times")
 fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
 st.plotly_chart(fig, use_container_width=True)
 
+# Data Export
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
 
+# ML Prediction Viewer
 st.subheader("🧠 ML Prediction Viewer")
 ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
 if ml_upload:
