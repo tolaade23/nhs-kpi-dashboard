@@ -91,7 +91,7 @@ if 'AvgWaitWeeks' in filtered_df.columns:
 kpi2.metric("Latest Week", filtered_df['Date'].max().strftime('%Y-%m-%d'))
 
 # ML Prediction
-st.subheader("🧠 Predicted Spike Alerts (Auto-generated)")
+st.subheader("🧠 Predicted Spike Alerts ")
 
 if 'AvgWaitWeeks' in filtered_df.columns and 'Treatment Function Name' in filtered_df.columns:
     pred_df = filtered_df.copy()
