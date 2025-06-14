@@ -1,4 +1,5 @@
-# NHS KPI Dashboard App - Full Upload-Based Version with Fixes
+
+# NHS KPI Dashboard App - Full Upload-Based Version with Auto ML Spike Detection
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -30,7 +31,7 @@ if not st.session_state.logged_in:
             st.error("Invalid credentials.")
     st.stop()
 
-# Upload-based data loader
+# Upload-based data loader with AvgWaitWeeks + Treatment Function Name
 def load_nhs_data():
     st.subheader("📁 Upload NHS RTT CSV File")
     uploaded_file = st.file_uploader("Upload the RTT October 2024 CSV", type=["csv"])
@@ -39,10 +40,31 @@ def load_nhs_data():
         df = pd.read_csv(uploaded_file)
 
         if "Period" in df.columns:
-            # Extract month and year from values like "RTT-October-2024"
             extracted = df["Period"].str.extract(r'(?:RTT[-\s])?([A-Za-z]+)[- ](\d{4})')
             df["Date"] = pd.to_datetime(extracted[0] + " " + extracted[1], format="%B %Y", errors="coerce")
             df = df.dropna(subset=["Date"])
+
+            if "Treatment Function Name" not in df.columns:
+                df["Treatment Function Name"] = df[df.columns[12]]
+
+            week_cols = [col for col in df.columns if "Weeks SUM" in col]
+
+            def weighted_avg(row):
+                total_patients = 0
+                weighted_sum = 0
+                for col in week_cols:
+                    try:
+                        val = row[col]
+                        if pd.isna(val): continue
+                        week = float(col.split("To")[0].replace("Gt", "").strip()) + 0.5
+                        total_patients += val
+                        weighted_sum += val * week
+                    except:
+                        continue
+                return weighted_sum / total_patients if total_patients else None
+
+            df["AvgWaitWeeks"] = df.apply(weighted_avg, axis=1)
+
             return df
         else:
             st.error("⚠️ 'Period' column not found in uploaded file.")
@@ -54,73 +76,34 @@ def load_nhs_data():
 # Load and filter data
 df = load_nhs_data()
 
-if df["Date"].isnull().all():
-    st.error("❌ No valid dates found in the 'Period' column. Please check the CSV format.")
-    st.stop()
-
 min_date = df["Date"].min()
 max_date = df["Date"].max()
 
-if pd.isnull(min_date) or pd.isnull(max_date):
-    st.error("⚠️ Could not determine min or max date from data.")
-    st.stop()
-
-# Sidebar date filter
-date_range = st.sidebar.date_input(
-    "Select Date Range",
-    [min_date.date(), max_date.date()]
-)
-
+date_range = st.sidebar.date_input("Select Date Range", [min_date.date(), max_date.date()])
 filtered_df = df[(df['Date'] >= pd.to_datetime(date_range[0])) &
                  (df['Date'] <= pd.to_datetime(date_range[1]))]
 
 # KPIs
 st.subheader("🔎 Key Stats")
 kpi1, kpi2 = st.columns(2)
-
-if 'AvgWaitWeeks' in df.columns:
+if 'AvgWaitWeeks' in filtered_df.columns:
     kpi1.metric("Avg Wait Time (weeks)", round(filtered_df['AvgWaitWeeks'].mean(), 1))
 kpi2.metric("Latest Week", filtered_df['Date'].max().strftime('%Y-%m-%d'))
 
-# Weekly spike alert
-if 'AvgWaitWeeks' in df.columns:
-    recent = filtered_df[filtered_df['Date'] >= filtered_df['Date'].max() - pd.Timedelta(days=7)]
-    if recent['AvgWaitWeeks'].mean() > 12:
-        st.warning("⚠️ Weekly wait time has spiked above normal!")
-
-# Trend chart
-if 'AvgWaitWeeks' in df.columns:
-    st.subheader("📈 Trends in Waiting Times")
-    fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
-    st.plotly_chart(fig, use_container_width=True)
-
-# ==========================
-# 🔮 Built-in Prediction Engine
-# ==========================
-
+# ML Prediction
 st.subheader("🧠 Predicted Spike Alerts (Auto-generated)")
 
-# Only if 'AvgWaitWeeks' and 'Treatment Function Name' columns exist
 if 'AvgWaitWeeks' in filtered_df.columns and 'Treatment Function Name' in filtered_df.columns:
     pred_df = filtered_df.copy()
-    
-    # Calculate rolling mean wait times within each treatment group
     pred_df.sort_values(by=["Treatment Function Name", "Date"], inplace=True)
     pred_df["RollingMean"] = pred_df.groupby("Treatment Function Name")["AvgWaitWeeks"]\
                                     .transform(lambda x: x.rolling(window=3, min_periods=1).mean())
-    
-    # Calculate Z-score
     pred_df["ZScore"] = (
         (pred_df["AvgWaitWeeks"] - pred_df["RollingMean"]) /
         pred_df.groupby("Treatment Function Name")["AvgWaitWeeks"].transform("std")
     )
-    
-    # Mark predicted spikes
     pred_df["Predicted Spike"] = pred_df["ZScore"].apply(lambda z: "Yes" if z > 1.0 else "No")
-
-    # Show only spikes
     spikes_only = pred_df[pred_df["Predicted Spike"] == "Yes"]
-
     if not spikes_only.empty:
         st.dataframe(spikes_only[[
             "Date", "Treatment Function Name", "AvgWaitWeeks", "RollingMean", "ZScore", "Predicted Spike"
@@ -128,14 +111,14 @@ if 'AvgWaitWeeks' in filtered_df.columns and 'Treatment Function Name' in filter
     else:
         st.success("✅ No unusual spikes in wait times were detected.")
 else:
-    st.info("ℹ️ To see spike predictions, make sure your dataset includes 'AvgWaitWeeks' and 'Treatment Function Name'.")
+    st.info("ℹ️ To see spike predictions, ensure your dataset includes 'AvgWaitWeeks' and 'Treatment Function Name'.")
 
-# CSV Export
+# Export data
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
 
-# ML prediction viewer
+# Optional ML prediction viewer
 st.subheader("🧠 ML Prediction Viewer")
 ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
 if ml_upload:
