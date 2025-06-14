@@ -52,8 +52,22 @@ def load_nhs_data():
 # Load and filter data
 df = load_nhs_data()
 
-min_date = df["Date"].min().date()
-max_date = df["Date"].max().date()
+if df["Date"].isnull().all():
+    st.error("❌ No valid dates found in the 'Period' column. Please check the CSV format.")
+    st.stop()
+
+min_date = df["Date"].min()
+max_date = df["Date"].max()
+
+if pd.isnull(min_date) or pd.isnull(max_date):
+    st.error("⚠️ Could not determine min or max date from data.")
+    st.stop()
+
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    [min_date.date(), max_date.date()]
+)
+
 
 date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
 filtered_df = df[(df['Date'] >= pd.to_datetime(date_range[0])) &
