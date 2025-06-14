@@ -112,8 +112,3 @@ if 'AvgWaitWeeks' in filtered_df.columns and 'Treatment Function Name' in filter
         st.success("✅ No unusual spikes in wait times were detected.")
 else:
     st.info("ℹ️ To see spike predictions, ensure your dataset includes 'AvgWaitWeeks' and 'Treatment Function Name'.")
-
-# Export data
-st.subheader("📄 Export Data")
-csv = filtered_df.to_csv(index=False).encode('utf-8')
-st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
