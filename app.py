@@ -3,16 +3,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-import base64
-import requests
-import zipfile
-import io
 
-USER_CREDENTIALS = {"nhs_admin": "password123", "doctor1": "welcome2025"}
+# Simulated login credentials
+USER_CREDENTIALS = {
+    "nhs_admin": "password123",
+    "doctor1": "welcome2025"
+}
 
+# Streamlit app settings
 st.set_page_config(page_title="NHS KPI Dashboard", layout="wide")
 st.title("🏥 NHS KPI Dashboard")
 
+# Login logic
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -28,67 +30,60 @@ if not st.session_state.logged_in:
             st.error("Invalid credentials.")
     st.stop()
 
+# Load local data file
 @st.cache_data
 def load_nhs_data():
-    # Load directly from uploaded CSV
-    df = pd.read_csv("data/oct2024.csv")
+    df = pd.read_csv("oct2024.csv")  # Your locally uploaded file name
 
-    # Fix date parsing
-    df["Date"] = pd.to_datetime(df["Period"], errors="coerce")
-    df = df[df["Date"].notna()]
+    # Convert Period to Date column
+    if "Period" in df.columns:
+        df["Date"] = pd.to_datetime(df["Period"], errors='coerce')
+        df = df.dropna(subset=["Date"])
+    else:
+        st.error("'Period' column not found in uploaded data.")
+        st.stop()
 
-    # Derive avg wait from week bins if "AvgWaitWeeks" not present
-    week_cols = [col for col in df.columns if "Weeks SUM" in col and "Unknown" not in col]
-    if week_cols:
-        try:
-            week_values = [float(col.split("To")[0].replace("Gt", "").strip()) + 0.5 for col in week_cols]
-            week_wait_matrix = df[week_cols].multiply(week_values)
-            df["AvgWaitWeeks"] = week_wait_matrix.sum(axis=1) / df[week_cols].sum(axis=1)
-        except:
-            df["AvgWaitWeeks"] = None
-
-    df = df.dropna(subset=["Date", "AvgWaitWeeks"])
     return df
 
-# Load Data
+# Load data and filter by date
 df = load_nhs_data()
 
-if df["Date"].isnull().all():
-    st.error("No valid dates found in the data.")
+if df.empty:
+    st.warning("No data loaded.")
     st.stop()
 
-min_date = df["Date"].min()
-max_date = df["Date"].max()
+# Date range filter
+date_range = st.sidebar.date_input("Select Date Range", [df['Date'].min().date(), df['Date'].max().date()])
 
-# Sidebar Filter
-date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
-filtered_df = df[
-    (df['Date'] >= pd.to_datetime(date_range[0])) &
-    (df['Date'] <= pd.to_datetime(date_range[1]))
-]
+filtered_df = df[(df['Date'] >= pd.to_datetime(date_range[0])) &
+                 (df['Date'] <= pd.to_datetime(date_range[1]))]
 
-# KPI Metrics
+# KPIs
 st.subheader("🔎 Key Stats")
 kpi1, kpi2 = st.columns(2)
-kpi1.metric("Avg Wait Time (weeks)", round(filtered_df['AvgWaitWeeks'].mean(), 1))
+
+if 'AvgWaitWeeks' in df.columns:
+    kpi1.metric("Avg Wait Time (weeks)", round(filtered_df['AvgWaitWeeks'].mean(), 1))
 kpi2.metric("Latest Week", filtered_df['Date'].max().strftime('%Y-%m-%d'))
 
-# Weekly Spike Alert
-recent = filtered_df[filtered_df['Date'] >= filtered_df['Date'].max() - pd.Timedelta(days=7)]
-if recent['AvgWaitWeeks'].mean() > 12:
-    st.warning("⚠️ Weekly wait time has spiked above normal!")
+# Warning alert for high wait time
+if 'AvgWaitWeeks' in df.columns:
+    recent = filtered_df[filtered_df['Date'] >= filtered_df['Date'].max() - pd.Timedelta(days=7)]
+    if recent['AvgWaitWeeks'].mean() > 12:
+        st.warning("⚠️ Weekly wait time has spiked above normal!")
 
-# Line Chart
-st.subheader("📈 Trends in Waiting Times")
-fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
-st.plotly_chart(fig, use_container_width=True)
+# Trend line chart
+if 'AvgWaitWeeks' in df.columns:
+    st.subheader("📈 Trends in Waiting Times")
+    fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
+    st.plotly_chart(fig, use_container_width=True)
 
-# Data Export
+# Export filtered data
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
 
-# ML Prediction Viewer
+# Optional: ML predictions upload
 st.subheader("🧠 ML Prediction Viewer")
 ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
 if ml_upload:
