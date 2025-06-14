@@ -1,4 +1,4 @@
-# NHS KPI Dashboard App - Real Data, ML Alerts, and Export
+# NHS KPI Dashboard App - Full Upload-Based Version
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -10,7 +10,7 @@ USER_CREDENTIALS = {
     "doctor1": "welcome2025"
 }
 
-# Streamlit app settings
+# App setup
 st.set_page_config(page_title="NHS KPI Dashboard", layout="wide")
 st.title("🏥 NHS KPI Dashboard")
 
@@ -30,31 +30,32 @@ if not st.session_state.logged_in:
             st.error("Invalid credentials.")
     st.stop()
 
-# Load local data file
-@st.cache_data
+# Upload-based data loader
 def load_nhs_data():
-    df = pd.read_csv("oct2024.csv")  # Your locally uploaded file name
+    st.subheader("📁 Upload NHS RTT CSV File")
+    uploaded_file = st.file_uploader("Upload the RTT October 2024 CSV", type=["csv"])
 
-    # Convert Period to Date column
-    if "Period" in df.columns:
-        df["Date"] = pd.to_datetime(df["Period"], errors='coerce')
-        df = df.dropna(subset=["Date"])
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+
+        if "Period" in df.columns:
+            df["Date"] = pd.to_datetime(df["Period"], errors="coerce")
+            df = df.dropna(subset=["Date"])
+            return df
+        else:
+            st.error("⚠️ 'Period' column not found in uploaded file.")
+            st.stop()
     else:
-        st.error("'Period' column not found in uploaded data.")
+        st.warning("Please upload your NHS RTT CSV file to continue.")
         st.stop()
 
-    return df
-
-# Load data and filter by date
+# Load and filter data
 df = load_nhs_data()
 
-if df.empty:
-    st.warning("No data loaded.")
-    st.stop()
+min_date = df["Date"].min().date()
+max_date = df["Date"].max().date()
 
-# Date range filter
-date_range = st.sidebar.date_input("Select Date Range", [df['Date'].min().date(), df['Date'].max().date()])
-
+date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
 filtered_df = df[(df['Date'] >= pd.to_datetime(date_range[0])) &
                  (df['Date'] <= pd.to_datetime(date_range[1]))]
 
@@ -66,24 +67,24 @@ if 'AvgWaitWeeks' in df.columns:
     kpi1.metric("Avg Wait Time (weeks)", round(filtered_df['AvgWaitWeeks'].mean(), 1))
 kpi2.metric("Latest Week", filtered_df['Date'].max().strftime('%Y-%m-%d'))
 
-# Warning alert for high wait time
+# Weekly spike alert
 if 'AvgWaitWeeks' in df.columns:
     recent = filtered_df[filtered_df['Date'] >= filtered_df['Date'].max() - pd.Timedelta(days=7)]
     if recent['AvgWaitWeeks'].mean() > 12:
         st.warning("⚠️ Weekly wait time has spiked above normal!")
 
-# Trend line chart
+# Trend chart
 if 'AvgWaitWeeks' in df.columns:
     st.subheader("📈 Trends in Waiting Times")
     fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
     st.plotly_chart(fig, use_container_width=True)
 
-# Export filtered data
+# CSV Export
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
 
-# Optional: ML predictions upload
+# ML prediction viewer
 st.subheader("🧠 ML Prediction Viewer")
 ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
 if ml_upload:
