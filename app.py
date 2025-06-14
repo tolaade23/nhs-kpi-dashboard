@@ -94,6 +94,42 @@ if 'AvgWaitWeeks' in df.columns:
     fig = px.line(filtered_df, x='Date', y='AvgWaitWeeks', title="Average Wait Weeks Over Time")
     st.plotly_chart(fig, use_container_width=True)
 
+# ==========================
+# 🔮 Built-in Prediction Engine
+# ==========================
+
+st.subheader("🧠 Predicted Spike Alerts (Auto-generated)")
+
+# Only if 'AvgWaitWeeks' and 'Treatment Function Name' columns exist
+if 'AvgWaitWeeks' in filtered_df.columns and 'Treatment Function Name' in filtered_df.columns:
+    pred_df = filtered_df.copy()
+    
+    # Calculate rolling mean wait times within each treatment group
+    pred_df.sort_values(by=["Treatment Function Name", "Date"], inplace=True)
+    pred_df["RollingMean"] = pred_df.groupby("Treatment Function Name")["AvgWaitWeeks"]\
+                                    .transform(lambda x: x.rolling(window=3, min_periods=1).mean())
+    
+    # Calculate Z-score
+    pred_df["ZScore"] = (
+        (pred_df["AvgWaitWeeks"] - pred_df["RollingMean"]) /
+        pred_df.groupby("Treatment Function Name")["AvgWaitWeeks"].transform("std")
+    )
+    
+    # Mark predicted spikes
+    pred_df["Predicted Spike"] = pred_df["ZScore"].apply(lambda z: "Yes" if z > 1.0 else "No")
+
+    # Show only spikes
+    spikes_only = pred_df[pred_df["Predicted Spike"] == "Yes"]
+
+    if not spikes_only.empty:
+        st.dataframe(spikes_only[[
+            "Date", "Treatment Function Name", "AvgWaitWeeks", "RollingMean", "ZScore", "Predicted Spike"
+        ]].sort_values(by="Date", ascending=False))
+    else:
+        st.success("✅ No unusual spikes in wait times were detected.")
+else:
+    st.info("ℹ️ To see spike predictions, make sure your dataset includes 'AvgWaitWeeks' and 'Treatment Function Name'.")
+
 # CSV Export
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
