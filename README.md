@@ -113,11 +113,6 @@ To use with your own RTT file:
 Making data useful for smarter, fairer healthcare.
 
 
-
-
-## 📊 Features
-
--
 ---
 
 enData #AdetolaBuilds #HealthTech
