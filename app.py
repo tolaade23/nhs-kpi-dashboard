@@ -1,4 +1,4 @@
-# NHS KPI Dashboard App - Full Upload-Based Version
+# NHS KPI Dashboard App - Full Upload-Based Version with Fixes
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -39,7 +39,9 @@ def load_nhs_data():
         df = pd.read_csv(uploaded_file)
 
         if "Period" in df.columns:
-            df["Date"] = pd.to_datetime(df["Period"], errors="coerce")
+            # Extract month and year from values like "RTT-October-2024"
+            extracted = df["Period"].str.extract(r'(?:RTT[-\s])?([A-Za-z]+)[- ](\d{4})')
+            df["Date"] = pd.to_datetime(extracted[0] + " " + extracted[1], format="%B %Y", errors="coerce")
             df = df.dropna(subset=["Date"])
             return df
         else:
@@ -63,13 +65,12 @@ if pd.isnull(min_date) or pd.isnull(max_date):
     st.error("⚠️ Could not determine min or max date from data.")
     st.stop()
 
+# Sidebar date filter
 date_range = st.sidebar.date_input(
     "Select Date Range",
     [min_date.date(), max_date.date()]
 )
 
-
-date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
 filtered_df = df[(df['Date'] >= pd.to_datetime(date_range[0])) &
                  (df['Date'] <= pd.to_datetime(date_range[1]))]
 
