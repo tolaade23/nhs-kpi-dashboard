@@ -32,29 +32,37 @@ if not st.session_state.logged_in:
     
 @st.cache_data
 def load_nhs_data():
-    # Load your local uploaded CSV (make sure path and filename match)
     df = pd.read_csv("data/rtt_oct2024_full.csv")
 
-    # Identify all week-binned columns like "Gt 01 To 02 Weeks SUM 1"
-    week_columns = [col for col in df.columns if "Weeks SUM" in col and "Gt" in col]
+    # Try identifying all columns that match the format "Gt XX To XX Weeks SUM 1"
+    wait_columns = [
+        col for col in df.columns
+        if "To" in col and "Weeks" in col and col.startswith("Gt")
+    ]
 
-    # Map each column to its approximate week midpoint (e.g. "Gt 02 To 03..." → 2.5)
-    week_midpoints = {
-        col: float(col.split("To")[0].replace("Gt", "").strip()) + 0.5
-        for col in week_columns
-    }
+    # Create a new column for estimated wait week midpoint
+    wait_midpoints = []
+    for col in wait_columns:
+        try:
+            lower = float(col.split("To")[0].replace("Gt", "").strip())
+            upper = float(col.split("To")[1].split("Weeks")[0].strip())
+            midpoint = (lower + upper) / 2
+            wait_midpoints.append((col, midpoint))
+        except:
+            continue
 
-    # Calculate weighted average wait per row
-    df["EstimatedWait"] = df[week_columns].mul(
-        pd.Series(week_midpoints), axis=1
-    ).sum(axis=1) / df[week_columns].sum(axis=1)
+    # Calculate weighted average wait
+    df["TotalPatients"] = df[ [col for col, _ in wait_midpoints] ].sum(axis=1)
+    df["WeightedWait"] = sum(
+        df[col] * midpoint for col, midpoint in wait_midpoints
+    )
+    df["AvgWaitWeeks"] = df["WeightedWait"] / df["TotalPatients"]
 
-    # Group by month to get national/monthly average
-    grouped = df.groupby("Period")["EstimatedWait"].mean().reset_index()
-    grouped = grouped.rename(columns={"Period": "Date", "EstimatedWait": "AvgWaitWeeks"})
-    grouped["Date"] = pd.to_datetime(grouped["Date"], format="%Y-%m")
+    df = df.rename(columns={"Period": "Date"})
+    df = df.dropna(subset=["Date", "AvgWaitWeeks"])
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
-    return grouped
+    return df
 
 df = load_nhs_data()
 
