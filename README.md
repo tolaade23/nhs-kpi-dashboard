@@ -8,7 +8,7 @@
 
 # 🏥 NHS KPI Dashboard (Streamlit Cloud Version)
 
-An open-source, cloud-friendly dashboard built with Streamlit to help NHS staff monitor patient wait times, track trends, and get smart alerts.
+An open-source, secure, cloud-friendly dashboard built with Streamlit to help visualize NHS Referral to Treatment (RTT) wait times using real data, track trends, and get smart alerts.
 
 🔗 **Live App**: [https://nhs-kpi-dashboard.streamlit.app](https://nhs-kpi-dashboard.streamlit.app)  
 🎥 **Loom Demo**: Coming soon
@@ -18,16 +18,17 @@ An open-source, cloud-friendly dashboard built with Streamlit to help NHS staff 
 ## 🔍 Overview
 
 This NHS KPI Dashboard allows healthcare teams to:
-- ✅ View and filter live waiting time data from NHS England
-- 📈 Explore weekly trends in waiting times
-- 🚨 Receive alerts for unusual spikes (based on recent averages)
-- 📄 Export filtered data as a CSV file
-- 🔐 Securely log in with simple credentials
-- 🤖 Upload and preview machine learning predictions (CSV)
+- - 🔐 Staff login (demo users: `nhs_admin` / `doctor1`)
+- 📈 Chart of estimated average weekly wait time
+- ⚠️ ML-style alerts when wait times spike
+- 📁 Upload ML prediction CSVs
+- 📤 Export filtered data as CSV
 
 Built with **Streamlit**, **Pandas**, and **Plotly**.
 
 ---
+
+
 
 ## 🔐 Demo Login
 
@@ -39,8 +40,14 @@ Built with **Streamlit**, **Pandas**, and **Plotly**.
 > For demonstration only. For real-world use, implement NHS Login OAuth.
 
 ---
+## 🗂 Data Source
+
+The app uses NHS RTT data files from October 2024 (or any similar structured file) with weekly bins such as `Gt 01 To 02 Weeks SUM 1`, etc.
+
+You can replace `data/rtt_oct2024_full.csv` with your own file.
 
 ## 📁 How to Run Locally
+
 
 1. **Clone the repository**
    ```bash
@@ -69,9 +76,48 @@ To deploy to [Streamlit Cloud](https://streamlit.io/cloud):
 
 ---
 
+## 🚀 One-click Deploy
+
+[![Deploy to Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
+
+> Tip: You’ll need to upload your real `rtt_oct2024_full.csv` into the `data/` folder after deployment.
+
+---
+
+## 📦 Folder Structure
+
+```
+├── app.py
+└── data
+    └── rtt_oct2024_full.csv
+```
+
+---
+
+## ✅ Usage
+
+```bash
+streamlit run app.py
+```
+
+To use with your own RTT file:
+- Replace `data/rtt_oct2024_full.csv` with your cleaned dataset.
+- Ensure it contains `Period` and weekly SUM columns.
+
+---
+
+#Streamlit #NHS #Python #DataScience #MachineLearning #Op
 ## 👩‍💻 Built By
 
 **Adetola Adeniyi** – [LinkedIn](https://www.linkedin.com/in/adetolaadeniyi/)  
 Making data useful for smarter, fairer healthcare.
 
-#Streamlit #NHS #Python #DataScience #MachineLearning #OpenData #AdetolaBuilds #HealthTech
+
+
+
+## 📊 Features
+
+-
+---
+
+enData #AdetolaBuilds #HealthTech
