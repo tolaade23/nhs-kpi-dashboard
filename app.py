@@ -32,28 +32,29 @@ if not st.session_state.logged_in:
     
 @st.cache_data
 def load_nhs_data():
-    url = "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2024/12/Full-CSV-data-file-Oct24-ZIP-4M-60893.zip"
+    # Load your local uploaded CSV (make sure path and filename match)
+    df = pd.read_csv("data/rtt_oct2024_full.csv")
 
-    # Download and unzip
-    response = requests.get(url)
-    zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+    # Identify all week-binned columns like "Gt 01 To 02 Weeks SUM 1"
+    week_columns = [col for col in df.columns if "Weeks SUM" in col and "Gt" in col]
 
-    # Grab the first CSV (you can refine if needed)
-    csv_filename = [f for f in zip_file.namelist() if f.endswith(".csv")][0]
+    # Map each column to its approximate week midpoint (e.g. "Gt 02 To 03..." → 2.5)
+    week_midpoints = {
+        col: float(col.split("To")[0].replace("Gt", "").strip()) + 0.5
+        for col in week_columns
+    }
 
-    with zip_file.open(csv_filename) as csv_file:
-        df = pd.read_csv(csv_file)
+    # Calculate weighted average wait per row
+    df["EstimatedWait"] = df[week_columns].mul(
+        pd.Series(week_midpoints), axis=1
+    ).sum(axis=1) / df[week_columns].sum(axis=1)
 
-    # Rename and format
-    df = df.rename(columns={
-        "Period": "Date",
-        "Incomplete Pathways Median Wait (wks)": "AvgWaitWeeks"
-    })
+    # Group by month to get national/monthly average
+    grouped = df.groupby("Period")["EstimatedWait"].mean().reset_index()
+    grouped = grouped.rename(columns={"Period": "Date", "EstimatedWait": "AvgWaitWeeks"})
+    grouped["Date"] = pd.to_datetime(grouped["Date"], format="%Y-%m")
 
-    df = df.dropna(subset=["Date", "AvgWaitWeeks"])
-    df["Date"] = pd.to_datetime(df["Date"], format="%Y-%m")
-    return df
-
+    return grouped
 
 df = load_nhs_data()
 
