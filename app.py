@@ -117,11 +117,3 @@ else:
 st.subheader("📄 Export Data")
 csv = filtered_df.to_csv(index=False).encode('utf-8')
 st.download_button("Download CSV", csv, "wait_times.csv", "text/csv")
-
-# Optional ML prediction viewer
-st.subheader("🧠 ML Prediction Viewer")
-ml_upload = st.file_uploader("Upload your ML predictions (CSV)", type=["csv"])
-if ml_upload:
-    ml_df = pd.read_csv(ml_upload)
-    st.write("Machine Learning Predictions:")
-    st.dataframe(ml_df.head())
